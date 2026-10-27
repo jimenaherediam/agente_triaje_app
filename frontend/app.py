@@ -50,6 +50,7 @@ with col_paciente:
                         "nhc": nhc,
                         "categoria": data.get("categoria"),
                         "motivo_triaje": data.get("motivo_triaje"),
+                        "skills_usadas":data.get("skills_usadas", []),
                         "prueba_agente": data.get("prueba_decidida_por_agente"),
                         "error_guardrail": data.get("error_guardrail"),
                         "requiere_supervision": data.get("requiere_supervision")
@@ -149,6 +150,15 @@ with col_trazas:
                 st.write(f"**Especialidad Enrutada:** `{traza.get('categoria')}`")
                 st.write(f"**Motivo Enrutador:** {traza.get('motivo_triaje')}")
                 
+                # Visualización de Skills clínicas
+                skills = traza.get("skills_usadas", [])
+                if skills:
+                    st.markdown("**🧠 Skills Clínicas Activadas:**")
+                    for s in skills:
+                        st.info(f"📄 `{s}` (cargada dinámicamente desde Markdown)")
+                else:
+                    st.caption("ℹ️ No se requirió carga de skills procedurales externas.")
+
                 if traza.get("error_guardrail"):
                     st.error(f"**Guardrail Activado:** {traza['error_guardrail']}")
                 else:

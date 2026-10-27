@@ -1,25 +1,34 @@
+from pydantic import BaseModel, Field
+from domain.schemas import EspecialidadMedica
 from core.llm import crear_modelo
-from domain.schemas import ClasificacionTriaje
 
-PROMPT_ENRUTADOR_CLINICO = (
-    "Eres un médico coordinador de triaje hospitalario. Clasifica el motivo de consulta del paciente "
-    "en una única especialidad de destino:\n"
-    "- cardiologia: dolor precordial/retroesternal, dolor torácico postural (pericarditis), palpitaciones, síncope, sospecha coronaria o arritmias.\n"
-    "- neumologia: disnea, tos crónica persistente, hemoptisis, ruidos respiratorios, dolor pleurítico respiratorio puro.\n"
-    "- traumatologia: fracturas, esguinces, dolor articular mecánico, traumatismos óseos o deformidades.\n"
-    "- general: fiebre sin foco, malestar general, astenia, epigastralgia, alteraciones analíticas inespecíficas.\n"
-    "Responde obligatoriamente cumpliendo el esquema JSON indicado."
-)
+class ClasificacionTriaje(BaseModel):
+    categoria: EspecialidadMedica = Field(
+        ..., 
+        description="Especialidad de destino: 'cardiologia', 'neumologia', 'traumatologia' o 'general'"
+    )
+    motivo: str = Field(
+        ..., 
+        description="Breve justificación clínica de por qué se asigna a esta especialidad"
+    )
 
-# Modelo con temperatura 0 para máxima consistencia determinista
-_modelo_clasificador = crear_modelo(temperatura=0).with_structured_output(
-    ClasificacionTriaje, method="json_schema"
-)
+PROMPT_ROUTER = """Eres el sistema de triaje hospitalario de urgencias.
+Tu ÚNICA tarea es clasificar el motivo de consulta del paciente en una de estas 4 especialidades:
+- cardiologia: dolor torácico, palpitaciones, síncope, insuficiencia cardíaca, sospecha de infarto o SCACEST.
+- neumologia: disnea respiratoria, tos persistente, expectoración, patología pulmonar.
+- traumatologia: fracturas, esguinces, dolor articular, traumatismos óseos, lesiones ligamentosas.
+- general: síntomas inespecíficos, consultas enciclopédicas, analíticas generales.
 
+Clasifica de forma estricta según el síntoma predominante.
+"""
 
-async def clasificar_motivo_triaje(motivo_consulta: str) -> ClasificacionTriaje:
-    """Clasifica el motivo de consulta del paciente en una especialidad médica mediante Pydantic."""
-    return await _modelo_clasificador.ainvoke([
-        {"role": "system", "content": PROMPT_ENRUTADOR_CLINICO},
-        {"role": "user", "content": motivo_consulta}
+async def clasificar_motivo_triaje(pregunta: str) -> ClasificacionTriaje:
+    llm = crear_modelo()
+    llm_estructurado = llm.with_structured_output(ClasificacionTriaje)
+    
+    # Invocamos pasando el contexto del sistema
+    resultado = await llm_estructurado.ainvoke([
+        {"role": "system", "content": PROMPT_ROUTER},
+        {"role": "user", "content": pregunta}
     ])
+    return resultado

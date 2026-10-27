@@ -16,7 +16,7 @@ CASOS_PENDIENTES_MEDICO = {}
 MAPEO_PRUEBAS = {
     "cardiologia": {
         "ecocardiograma transtoracico": ["ecocardiograma", "ecocardio", "eco transtoracico"],
-        "electrocardiograma": ["electrocardiograma", "ecg", "ekg"],
+        "electrocardiograma": ["electrocardiograma", "ecg", "ekg", "trazado electrocardiografico"],
         "ergometria": ["ergometria", "prueba de esfuerzo"],
         "holter ecg 24h": ["holter"]
     },
@@ -51,6 +51,33 @@ def _inferir_prueba(texto: str, categoria: str) -> Optional[str]:
             return p
     return None
 
+def _extraer_skills_usadas(mensajes: list) -> list[str]:
+    """Inspecciona los mensajes para registrar skills y herramientas consultadas."""
+    skills_invocadas = []
+    for msg in mensajes:
+        # 1. Detección en tool_calls de AIMessage
+        tool_calls = getattr(msg, "tool_calls", []) or []
+        for call in tool_calls:
+            nombre_tool = call.get("name", "")
+            args = call.get("args", {})
+            
+            if nombre_tool == "load_skill":
+                s = args.get("nombre")
+                if s and s not in skills_invocadas:
+                    skills_invocadas.append(s)
+            elif nombre_tool in ["buscar_wikipedia", "extracto_wikipedia"]:
+                if "ficha-enciclopedica" not in skills_invocadas:
+                    skills_invocadas.append("ficha-enciclopedica (Wikipedia)")
+        
+        # 2. Detección en ToolMessage de retorno
+        nombre_tool_msg = getattr(msg, "name", "")
+        if nombre_tool_msg == "load_skill":
+            contenido = str(getattr(msg, "content", ""))
+            for conocida in ["ficha-enciclopedica", "protocolo-scacest"]:
+                if conocida in contenido and conocida not in skills_invocadas:
+                    skills_invocadas.append(conocida)
+                    
+    return skills_invocadas
 
 class ConsultaTriajeRequest(BaseModel):
     nhc: str = Field(default="PAC-8921")
@@ -109,12 +136,21 @@ async def iniciar_triaje(req: ConsultaTriajeRequest):
             }
             # Guardamos el caso en la bandeja de espera del médico
             CASOS_PENDIENTES_MEDICO[thread_id] = volante
+    
+    # 1. Recuperar los mensajes devueltos por el grafo
+    mensajes = res.get("mensajes")
+    if not mensajes:
+        snapshot = grafo_triaje_app.get_state(config)
+        mensajes = snapshot.values.get("mensajes", [])
+
+    skills_usadas = _extraer_skills_usadas(mensajes)
 
     return {
         "thread_id": thread_id,
         "categoria": categoria,
         "motivo_triaje": res.get("motivo_triaje"),
         "respuesta_especialista": dictamen,
+        "skills_usadas": skills_usadas,
         "prueba_decidida_por_agente": prueba_decidida,
         "error_guardrail": error_guardrail,
         "requiere_supervision": requiere_supervision,
