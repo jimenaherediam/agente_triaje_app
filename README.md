@@ -21,7 +21,7 @@ Sistema asistencial de Inteligencia Artificial agéntica basado en modelos abier
 ## 🧠 Arquitectura del Sistema
 
 El sistema abandona el enfoque de agente monolítico en favor de un flujo de trabajo modular orquestado por un grafo de estados (`StateGraph` de LangGraph):
-![Diagrama de Arquitectura de la Aplicación](docs/arquitectura.png)
+![Diagrama de Arquitectura de la Aplicación](/arquitectura.png)
 ### Componentes Principales
 
 1. **Enrutador Clínico (`agents/router.py`):** Clasifica deterministamente el motivo de consulta mediante salida estructurada (`json_schema`) hacia una de las 4 especialidades: `cardiologia`, `neumologia`, `traumatologia` o `general`.
