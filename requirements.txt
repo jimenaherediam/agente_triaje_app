@@ -1,0 +1,18 @@
+# Núcleo de orquestación de agentes y LLM
+langchain==1.4.3
+langchain-core==1.6.6
+langgraph==1.2.12
+langchain-ollama==1.1.0
+
+# Tipado estructurado y validaciones
+pydantic>=2.7.0
+
+# Cliente HTTP para tools (Wikipedia)
+requests>=2.32.0
+
+# Backend de la aplicación
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+
+# Frontend interactivo
+streamlit>=1.39.0
